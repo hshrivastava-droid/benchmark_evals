@@ -1,0 +1,6 @@
+numpy
+aiohttp
+tqdm
+transformers
+huggingface_hub
+lm-eval[api]
