@@ -28,6 +28,8 @@ EVAL_TASK="gsm8k"
 NUM_FEWSHOT=""
 EVAL_CONCURRENT="64"
 GEN_MAX_TOKENS=""
+ISL="8192"
+OSL="1024"
 BENCH_RESULT_DIR=""
 DO_BENCH=true
 DO_EVAL=true
@@ -49,6 +51,8 @@ Options:
   --num-fewshot N
   --eval-concurrent N
   --gen-max-tokens N      Eval context budget (default: 16384 in lib_lm_eval).
+  --isl N                 Input sequence length for benchmark (default: 8192).
+  --osl N                 Output sequence length for benchmark (default: 1024).
   --results-dir DIR       Throughput JSON output (default: ./results).
   --bench-only            Throughput only.
   --eval-only             lm-eval only.
@@ -69,6 +73,8 @@ while [[ $# -gt 0 ]]; do
     --num-fewshot) NUM_FEWSHOT="$2"; shift 2 ;;
     --eval-concurrent) EVAL_CONCURRENT="$2"; shift 2 ;;
     --gen-max-tokens) GEN_MAX_TOKENS="$2"; shift 2 ;;
+    --isl) ISL="$2"; shift 2 ;;
+    --osl) OSL="$2"; shift 2 ;;
     --results-dir) BENCH_RESULT_DIR="$2"; shift 2 ;;
     --bench-only) DO_EVAL=false; shift ;;
     --eval-only) DO_BENCH=false; shift ;;
@@ -120,8 +126,8 @@ if [[ "$DO_BENCH" == true ]]; then
       --backend vllm
       --base-url "$BASE_URL"
       --dataset-name random
-      --random-input-len 1024
-      --random-output-len 1024
+      --random-input-len "$ISL"
+      --random-output-len "$OSL"
       --random-range-ratio 0.8
       --num-prompts "$num_prompts"
       --max-concurrency "$conc"
