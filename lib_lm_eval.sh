@@ -103,6 +103,7 @@ bench_serving_run_lm_eval() {
   local temperature=0
   local top_p=1
   local concurrent_requests=64
+  local limit=""
 
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -115,6 +116,7 @@ bench_serving_run_lm_eval() {
       --temperature) temperature="$2"; shift 2 ;;
       --top-p) top_p="$2"; shift 2 ;;
       --concurrent-requests) concurrent_requests="$2"; shift 2 ;;
+      --limit) limit="$2"; shift 2 ;;
       *) echo "Unknown parameter: $1" >&2; return 1 ;;
     esac
   done
@@ -153,10 +155,16 @@ bench_serving_run_lm_eval() {
     fewshot_args=(--num_fewshot "$num_fewshot")
   fi
 
+  local limit_args=()
+  if [[ -n "$limit" ]]; then
+    limit_args=(--limit "$limit")
+  fi
+
   set -x
   python3 -m lm_eval --model local-chat-completions --apply_chat_template \
     --tasks "${task_yaml}" \
     "${fewshot_args[@]}" \
+    "${limit_args[@]}" \
     --output_path "${results_dir}" \
     --log_samples \
     --model_args "model=${model_api},base_url=${openai_chat_base},api_key=${OPENAI_API_KEY},eos_string=</s>,max_retries=5,num_concurrent=${concurrent_requests},timeout=1800,tokenized_requests=False,max_length=${eval_context_len}" \

@@ -28,6 +28,7 @@ EVAL_TASK="gsm8k"
 NUM_FEWSHOT=""
 EVAL_CONCURRENT="64"
 GEN_MAX_TOKENS=""
+EVAL_LIMIT=""
 ISL="8192"
 OSL="1024"
 BENCH_RESULT_DIR=""
@@ -51,6 +52,7 @@ Options:
   --num-fewshot N
   --eval-concurrent N
   --gen-max-tokens N      Eval context budget (default: 16384 in lib_lm_eval).
+  --limit N               Max number of eval samples (default: all).
   --isl N                 Input sequence length for benchmark (default: 8192).
   --osl N                 Output sequence length for benchmark (default: 1024).
   --results-dir DIR       Throughput JSON output (default: ./results).
@@ -73,6 +75,7 @@ while [[ $# -gt 0 ]]; do
     --num-fewshot) NUM_FEWSHOT="$2"; shift 2 ;;
     --eval-concurrent) EVAL_CONCURRENT="$2"; shift 2 ;;
     --gen-max-tokens) GEN_MAX_TOKENS="$2"; shift 2 ;;
+    --limit) EVAL_LIMIT="$2"; shift 2 ;;
     --isl) ISL="$2"; shift 2 ;;
     --osl) OSL="$2"; shift 2 ;;
     --results-dir) BENCH_RESULT_DIR="$2"; shift 2 ;;
@@ -162,6 +165,7 @@ if [[ "$DO_EVAL" == true ]]; then
   )
   [[ -z "$NUM_FEWSHOT" ]] || eval_cmd+=(--num-fewshot "$NUM_FEWSHOT")
   [[ -z "$GEN_MAX_TOKENS" ]] || eval_cmd+=(--gen-max-tokens "$GEN_MAX_TOKENS")
+  [[ -z "$EVAL_LIMIT" ]] || eval_cmd+=(--limit "$EVAL_LIMIT")
   "${eval_cmd[@]}"
   echo "lm-eval output: ${eval_results}"
 fi
