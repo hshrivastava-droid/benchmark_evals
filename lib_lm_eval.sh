@@ -5,18 +5,17 @@
 # shellcheck shell=bash
 
 _bench_serving_install_lm_eval() {
-  python3 -m pip install -q --no-cache-dir --break-system-packages "lm-eval[api]" 2>/dev/null || \
-    python3 -m pip install -q --no-cache-dir "lm-eval[api]" || true
+  python3 -m pip install -q --no-cache-dir "lm-eval[api]" || true
 
   local lm_eval_ref="b315ef3b05176acc9732bb7fdec116abe1ecc476"
   if command -v git >/dev/null 2>&1; then
-    if ! python3 -m pip install -q --no-cache-dir --no-deps --break-system-packages \
+    if ! python3 -m pip install -q --no-cache-dir --no-deps \
           "git+https://github.com/EleutherAI/lm-evaluation-harness.git@${lm_eval_ref}" 2>/dev/null; then
-      python3 -m pip install -q --no-cache-dir --no-deps --break-system-packages \
+      python3 -m pip install -q --no-cache-dir --no-deps \
           "https://github.com/EleutherAI/lm-evaluation-harness/archive/${lm_eval_ref}.tar.gz" || true
     fi
   else
-    python3 -m pip install -q --no-cache-dir --no-deps --break-system-packages \
+    python3 -m pip install -q --no-cache-dir --no-deps \
         "https://github.com/EleutherAI/lm-evaluation-harness/archive/${lm_eval_ref}.tar.gz" || true
   fi
 }
@@ -163,8 +162,8 @@ bench_serving_run_lm_eval() {
   set -x
   python3 -m lm_eval --model local-chat-completions --apply_chat_template \
     --tasks "${task_yaml}" \
-    "${fewshot_args[@]}" \
-    "${limit_args[@]}" \
+    ${fewshot_args[@]+"${fewshot_args[@]}"} \
+    ${limit_args[@]+"${limit_args[@]}"} \
     --output_path "${results_dir}" \
     --log_samples \
     --model_args "model=${model_api},base_url=${openai_chat_base},api_key=${OPENAI_API_KEY},eos_string=</s>,max_retries=5,num_concurrent=${concurrent_requests},timeout=1800,tokenized_requests=False,max_length=${eval_context_len}" \
