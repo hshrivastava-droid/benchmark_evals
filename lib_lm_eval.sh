@@ -41,7 +41,7 @@ def _le_parse_generations(outputs, **kwargs):
                   msg = (choice.get("message") or {})
                   content = msg.get("content")
                   if content in (None, "", []):
-                      content = msg.get("reasoning_content") or ""
+                      content = msg.get("reasoning_content") or msg.get("reasoning") or ""
                   tmp[idx] = content
           except Exception:
               tmp = [""]
