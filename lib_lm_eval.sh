@@ -84,6 +84,18 @@ if _TemplateAPI is not None and _JsonChatStr is not None:
             )
 
     _TemplateAPI.apply_chat_template = _patched_apply_chat_template
+
+try:
+    from lm_eval.tasks import __init__ as _tasks_init
+    _orig_pretty_print = _tasks_init.pretty_print_task
+    def _safe_pretty_print(task_name, task_manager, indent=0):
+        try:
+            return _orig_pretty_print(task_name, task_manager, indent)
+        except KeyError:
+            print(f"{'  ' * indent}- {task_name}")
+    _tasks_init.pretty_print_task = _safe_pretty_print
+except Exception:
+    pass
 PY
   export PYTHONPATH="${patch_dir}:${PYTHONPATH:-}"
 }
