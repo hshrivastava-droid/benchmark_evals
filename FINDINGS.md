@@ -13,9 +13,9 @@
 | Quant | MLX uniform 4-bit | GGUF Q4_K_M |
 | Questions | 1319 | 1319 |
 | Few-shot | 4 | 4 |
-| Runtime | 14h 23m | 13h 42m |
+| Runtime | 14h 23m | 3h 42m |
 
-**Conclusion:** DGX Spark (Ollama, Q4_K_M) outperforms Mac (MLX, uniform 4-bit) by ~4% on GSM8K with identical settings. Q4_K_M mixed-precision quantization preserves more model quality than MLX's uniform 4-bit — even on a short-context task where memory pressure is minimal.
+**Conclusion:** DGX Spark (Ollama, Q4_K_M) outperforms Mac (MLX, uniform 4-bit) by ~4% on GSM8K with identical settings, and completed the same 1319 questions **~4x faster** (3h 42m vs 14h 23m). Q4_K_M mixed-precision quantization preserves more model quality than MLX's uniform 4-bit — even on a short-context task where memory pressure is minimal.
 
 ---
 
