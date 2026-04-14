@@ -85,19 +85,17 @@ if _TemplateAPI is not None and _JsonChatStr is not None:
 
     _TemplateAPI.apply_chat_template = _patched_apply_chat_template
 
-try:
-    import lm_eval.tasks as _tasks_mod
-    _orig_pretty_print = _tasks_mod.pretty_print_task
-    def _safe_pretty_print(task_name, task_manager, indent=0):
-        try:
-            return _orig_pretty_print(task_name, task_manager, indent)
-        except KeyError:
-            print(f"{'  ' * indent}- {task_name}")
-    _tasks_mod.pretty_print_task = _safe_pretty_print
-except Exception:
-    pass
 PY
   export PYTHONPATH="${patch_dir}:${PYTHONPATH:-}"
+}
+
+_bench_serving_patch_pretty_print() {
+  local tasks_init
+  tasks_init="$(python3 -c "import lm_eval.tasks; print(lm_eval.tasks.__file__)")"
+  if [[ -f "$tasks_init" ]] && grep -q 'yaml_path = task_manager.task_index\[task_name\]' "$tasks_init"; then
+    sed -i.bak 's/yaml_path = task_manager\.task_index\[task_name\]/yaml_path = task_manager.task_index.get(task_name, {}).get("yaml_path", "custom")/' "$tasks_init"
+    echo "Patched pretty_print_task in ${tasks_init}"
+  fi
 }
 
 # Run lm-eval against a local OpenAI chat endpoint.
@@ -157,6 +155,7 @@ bench_serving_run_lm_eval() {
 
   _bench_serving_install_lm_eval
   _bench_serving_patch_lm_eval
+  _bench_serving_patch_pretty_print
 
   local openai_chat_base="http://${host}:${port}/v1/chat/completions"
   export OPENAI_API_KEY="${OPENAI_API_KEY:-EMPTY}"
