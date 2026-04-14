@@ -165,20 +165,46 @@ GSM8K is ~500 tokens — neither system is under memory pressure. Real-world inf
 
 ### Setup
 
-Add `evals/ruler_niah.yaml` and run at increasing context lengths:
+**Step 1 — Generate test data** (one-time, deterministic with seed 42):
+```bash
+python3 gen_ruler_niah.py                      # all lengths: 4k 8k 16k 32k 64k
+python3 gen_ruler_niah.py --lengths 4096 16384 # specific lengths only
+python3 gen_ruler_niah.py --samples 200        # more samples per length
+```
+
+This writes JSONL to `data/ruler_niah/niah_{4k,8k,16k,32k,64k}.jsonl` (100 samples each by default).
+Available task names: `ruler_niah` (=4k), `ruler_niah_4k`, `ruler_niah_8k`, `ruler_niah_16k`, `ruler_niah_32k`, `ruler_niah_64k`.
+
+**Step 2 — Run evals** at increasing context lengths:
 
 ```bash
-# 4K context
+# Mac (MLX) — 4K context
 ./run.sh --model Qwen/Qwen3-30B --port 8080 \
   --eval-as mlx-community/Qwen3-30B-A3B-4bit \
-  --eval-only --task ruler_niah \
+  --eval-only --task ruler_niah_4k \
   --gen-max-tokens 4096 \
   --eval-concurrent 1 --num-fewshot 0 \
   --limit 100
 
-# 16K context  
+# Mac (MLX) — 16K context
 ./run.sh --model Qwen/Qwen3-30B --port 8080 \
   --eval-as mlx-community/Qwen3-30B-A3B-4bit \
+  --eval-only --task ruler_niah_16k \
+  --gen-max-tokens 16384 \
+  --eval-concurrent 1 --num-fewshot 0 \
+  --limit 100
+
+# DGX Spark (Ollama) — 4K context
+./run.sh --model Qwen/Qwen3-30B --port 11434 \
+  --eval-as qwen3:30b-a3b-q4_K_M \
+  --eval-only --task ruler_niah_4k \
+  --gen-max-tokens 4096 \
+  --eval-concurrent 1 --num-fewshot 0 \
+  --limit 100
+
+# DGX Spark (Ollama) — 16K context
+./run.sh --model Qwen/Qwen3-30B --port 11434 \
+  --eval-as qwen3:30b-a3b-q4_K_M \
   --eval-only --task ruler_niah_16k \
   --gen-max-tokens 16384 \
   --eval-concurrent 1 --num-fewshot 0 \
@@ -206,5 +232,6 @@ Add `evals/ruler_niah.yaml` and run at increasing context lengths:
 
 1. Finish baseline GSM8K run (in progress)
 2. Pull model pairs on both devices for Experiment 1
-3. Write `evals/ruler_niah.yaml` for Experiment 2
-4. Build results comparison table once all runs complete
+3. ~~Write `evals/ruler_niah.yaml` for Experiment 2~~ ✓ Done — `gen_ruler_niah.py` + `evals/ruler_niah*.yaml` (4k/8k/16k/32k/64k)
+4. Run RULER NIAH sweeps on both Mac and DGX Spark
+5. Build results comparison table once all runs complete

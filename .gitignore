@@ -1,0 +1,12 @@
+# Generated NIAH test data (regenerate with: python3 gen_ruler_niah.py)
+data/
+
+# Python
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
+
+# Results (local only)
+results/

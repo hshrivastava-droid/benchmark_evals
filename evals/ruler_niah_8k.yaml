@@ -1,0 +1,33 @@
+# RULER NIAH — 8K context length variant.
+# Generate data first:  python3 gen_ruler_niah.py
+# Run:  ./run.sh ... --task ruler_niah_8k --gen-max-tokens 8192 --eval-only --num-fewshot 0 --limit 100
+task: ruler_niah_8k
+dataset_path: json
+dataset_kwargs:
+  data_files:
+    test: data/ruler_niah/niah_8k.jsonl
+output_type: generate_until
+test_split: test
+doc_to_text: "{{context}}\n\n{{query}}"
+doc_to_target: "{{answer}}"
+metric_list:
+  - metric: exact_match
+    aggregation: mean
+    higher_is_better: true
+    ignore_case: true
+    ignore_punctuation: true
+    regexes_to_ignore:
+      - "\\."
+      - "\\s+"
+generation_kwargs:
+  until:
+    - "\n"
+    - "</s>"
+    - "<|im_end|>"
+  do_sample: false
+  temperature: 0.0
+  max_gen_toks: 64
+repeats: 1
+num_fewshot: 0
+metadata:
+  version: 1.0
