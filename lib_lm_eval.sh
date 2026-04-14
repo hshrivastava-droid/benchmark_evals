@@ -92,8 +92,8 @@ PY
 _bench_serving_patch_pretty_print() {
   local tasks_init
   tasks_init="$(python3 -c "import lm_eval.tasks; print(lm_eval.tasks.__file__)")"
-  if [[ -f "$tasks_init" ]] && grep -q 'yaml_path = task_manager.task_index\[task_name\]' "$tasks_init"; then
-    sed -i.bak 's/yaml_path = task_manager\.task_index\[task_name\]/yaml_path = task_manager.task_index.get(task_name, {}).get("yaml_path", "custom")/' "$tasks_init"
+  if [[ -f "$tasks_init" ]] && grep -q 'task_manager.task_index\[task_name\]\["yaml_path"\]' "$tasks_init"; then
+    sed -i.bak 's|task_manager\.task_index\[task_name\]\["yaml_path"\]|task_manager.task_index.get(task_name, {"yaml_path": "custom"})["yaml_path"]|' "$tasks_init"
     echo "Patched pretty_print_task in ${tasks_init}"
   fi
 }
