@@ -42,10 +42,10 @@ Same model family, same quantization level, same eval harness, same prompts — 
 |--------|-----------|-------------------|
 | Model | `mlx-community/Qwen3-30B-A3B-4bit` | `qwen3:30b` |
 | Port | 8080 | 11434 |
-| Few-shot | 4 | 5 |
+| Few-shot | 4 | 4 |
 | Max tokens | 8192 | 8192 |
-| Questions | 1319 (full set) | 500 |
-| Runtime | 14h 23m | 1h 23m |
+| Questions | 1319 (full set) | 1319 (full set) |
+| Runtime | 14h 23m | 13h 42m |
 
 ```bash
 # Mac (MLX)
@@ -58,17 +58,17 @@ Same model family, same quantization level, same eval harness, same prompts — 
 ./run.sh --model Qwen/Qwen3-30B --port 11434 \
   --eval-as qwen3:30b \
   --eval-only --gen-max-tokens 8192 \
-  --eval-concurrent 1 --limit 500
+  --eval-concurrent 1 --num-fewshot 4
 ```
 
 ### Results
 
 | Metric | Mac (MLX) | DGX Spark (Ollama) | Delta |
 |--------|-----------|-------------------|-------|
-| **strict-match** | 0.9249 (±0.0073) | **0.972** (±0.0074) | **+4.7%** |
-| **flexible-extract** | 0.9242 (±0.0073) | **0.972** (±0.0074) | **+4.8%** |
+| **strict-match** | 0.9249 (±0.0073) | **0.9653** (±0.0007) | **+4.0%** |
+| **flexible-extract** | 0.9242 (±0.0073) | **0.9653** (±0.0007) | **+4.1%** |
 
-**Conclusion:** DGX Spark (Ollama, Q4_K_M) outperforms Mac (MLX, uniform 4-bit) by ~5% on GSM8K. This confirms that Q4_K_M mixed-precision quantization preserves more model quality than MLX's uniform 4-bit — even on a short-context task where memory pressure is minimal. DGX was also **10x faster** (1h 23m for 500 vs 14h 23m for 1319 on Mac).
+**Conclusion:** DGX Spark (Ollama, Q4_K_M) outperforms Mac (MLX, uniform 4-bit) by ~4% on GSM8K with identical settings (4-shot, 1319 questions). This confirms that Q4_K_M mixed-precision quantization preserves more model quality than MLX's uniform 4-bit — even on a short-context task where memory pressure is minimal.
 
 ---
 
@@ -173,7 +173,7 @@ Scale up to a larger coding-focused model to test whether the DGX advantage grow
 
 | Experiment | Task | Model | Variable | Status |
 |------------|------|-------|----------|--------|
-| Exp 1 | GSM8K | Qwen3-30B-A3B | device/framework | ✓ Done — DGX +5% |
+| Exp 1 | GSM8K | Qwen3-30B-A3B | device/framework | ✓ Done — DGX +4% |
 | Exp 2 | RULER NIAH | Qwen3-30B-A3B | context length | In progress |
 | Exp 3 | GSM8K + NIAH | Qwen3-Coder-80B | model scale | Planned |
 
@@ -181,7 +181,7 @@ Scale up to a larger coding-focused model to test whether the DGX advantage grow
 
 ## Next Steps
 
-1. ~~GSM8K baseline with Qwen3-30B~~ ✓ Done — DGX 97.2% vs Mac 92.4%
+1. ~~GSM8K baseline with Qwen3-30B~~ ✓ Done — DGX 96.5% vs Mac 92.4%
 2. Complete RULER NIAH sweeps on both Mac and DGX Spark (in progress)
 3. Verify Qwen3-Coder-80B availability on Ollama and MLX
 4. Run Experiment 3 on both platforms
