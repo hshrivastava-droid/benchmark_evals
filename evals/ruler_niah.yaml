@@ -24,13 +24,19 @@ metric_list:
       - "\\s+"
 generation_kwargs:
   until:
-    - "\n"
     - "</s>"
     - "<|im_end|>"
   do_sample: false
   temperature: 0.0
-  max_gen_toks: 64
+  max_gen_toks: 256
 repeats: 1
 num_fewshot: 0
+filter_list:
+  - name: "extract-answer"
+    filter:
+      - function: "regex"
+        group_select: -1
+        regex_pattern: "(\\d{4,})"
+      - function: "take_first"
 metadata:
-  version: 1.0
+  version: 1.1
