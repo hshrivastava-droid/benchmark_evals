@@ -126,95 +126,50 @@ If the gap holds across multiple models, it points to a **framework/quantization
 
 ---
 
-## Experiment 2 — Long Context Task
+## Experiment 2 — RULER Needle in a Haystack (NIAH)
 
-### Goal
-Measure how accuracy degrades as context length increases, and whether Mac degrades faster than DGX Spark.
+Test long-context retrieval at 4K–64K tokens. A secret key is buried in noise text; the model must recall it exactly. Thinking mode disabled (`/no_think`) on both platforms — NIAH is pure retrieval, not reasoning.
 
-### Why This Matters
-GSM8K is ~500 tokens — neither system is under memory pressure. Real-world inference (RAG, document QA, long chat) operates at 8K–32K tokens. This is where unified memory vs dedicated VRAM, and Flash Attention vs Metal kernels, actually diverge.
-
-### Recommended Task: RULER - Needle in a Haystack (NIAH)
-
-**Why RULER NIAH:**
-- Synthetic, fully controllable context length (1K → 128K)
-- Single clear answer buried in noise — binary correct/wrong
-- No ambiguity in scoring
-- Directly tests KV cache fidelity: can the model retrieve a fact from position X in the context?
-- Used in production model evals (GPT-4, Claude, Llama-3 papers)
-
-**What it does:** Hides a key-value pair ("The secret code is 7392") at a specific position in a long document of random text. Asks the model to recall it at the end.
-
-### Context Lengths to Test
-
-| Length | Expected Mac behavior | Expected DGX behavior |
-|--------|----------------------|----------------------|
-| 4K | Baseline, both fine | Baseline, both fine |
-| 8K | Slight degradation | Minimal degradation |
-| 16K | Noticeable drop | Small drop |
-| 32K | Significant drop | Moderate drop |
-| 64K | May fail entirely | Manageable |
-
-### Alternative Tasks
-
-| Task | Context | What it tests | Why useful |
-|------|---------|---------------|------------|
-| **LongBench-QA** | 4K–16K | Multi-doc QA | Real-world RAG simulation |
-| **SCROLLS/QuALITY** | 5K–10K | Reading comprehension | Tests reasoning across long narrative |
-| **RULER Multi-key** | 4K–128K | Retrieve multiple needles | Harder than single needle, more realistic |
+| Config | DGX Spark (Ollama) | Mac M4 (MLX) |
+|--------|-------------------|--------------|
+| Model | `qwen3:30b-a3b` (GGUF Q4_K_M) | `mlx-community/Qwen3-30B-A3B-4bit` (MLX 4-bit) |
+| Port | 11434 | 8081 |
+| Samples | 500 per context length | 500 per context length |
+| Needle depths | 10%, 25%, 50%, 75%, 90% | 10%, 25%, 50%, 75%, 90% |
+| Thinking | Disabled (`/no_think`) | Disabled (`/no_think`) |
 
 ### Setup
 
-**Step 1 — Generate test data** (one-time, deterministic with seed 42):
 ```bash
-python3 gen_ruler_niah.py                      # all lengths: 4k 8k 16k 32k 64k
-python3 gen_ruler_niah.py --lengths 4096 16384 # specific lengths only
-python3 gen_ruler_niah.py --samples 200        # more samples per length
+python3 gen_ruler_niah.py --samples 500    # generate test data (one-time)
 ```
 
-This writes JSONL to `data/ruler_niah/niah_{4k,8k,16k,32k,64k}.jsonl` (100 samples each by default).
-Available task names: `ruler_niah` (=4k), `ruler_niah_4k`, `ruler_niah_8k`, `ruler_niah_16k`, `ruler_niah_32k`, `ruler_niah_64k`.
-
-**Step 2 — Run evals** at increasing context lengths:
+### Run Commands
 
 ```bash
-# Mac (MLX) — 4K context
-./run.sh --model Qwen/Qwen3-30B --port 8080 \
-  --eval-as mlx-community/Qwen3-30B-A3B-4bit \
-  --eval-only --task ruler_niah_4k \
-  --gen-max-tokens 4096 \
-  --eval-concurrent 1 --num-fewshot 0 \
-  --limit 100
-
-# Mac (MLX) — 16K context
-./run.sh --model Qwen/Qwen3-30B --port 8080 \
-  --eval-as mlx-community/Qwen3-30B-A3B-4bit \
-  --eval-only --task ruler_niah_16k \
-  --gen-max-tokens 16384 \
-  --eval-concurrent 1 --num-fewshot 0 \
-  --limit 100
-
-# DGX Spark (Ollama) — 4K context
+# DGX Spark — replace TASK and GEN_MAX for each context length
 ./run.sh --model Qwen/Qwen3-30B --port 11434 \
-  --eval-as qwen3:30b-a3b-q4_K_M \
-  --eval-only --task ruler_niah_4k \
-  --gen-max-tokens 4096 \
-  --eval-concurrent 1 --num-fewshot 0 \
-  --limit 100
+  --eval-as qwen3:30b-a3b \
+  --eval-only --task ruler_niah_32k \
+  --gen-max-tokens 32768 --eval-concurrent 1 --num-fewshot 0
 
-# DGX Spark (Ollama) — 16K context
-./run.sh --model Qwen/Qwen3-30B --port 11434 \
-  --eval-as qwen3:30b-a3b-q4_K_M \
-  --eval-only --task ruler_niah_16k \
-  --gen-max-tokens 16384 \
-  --eval-concurrent 1 --num-fewshot 0 \
-  --limit 100
+# Mac M4 — replace TASK and GEN_MAX for each context length
+./run.sh --model mlx-community/Qwen3-30B-A3B-4bit --port 8081 \
+  --eval-only --task ruler_niah_32k \
+  --gen-max-tokens 32768 --eval-concurrent 1 --num-fewshot 0
 ```
 
-### What to Look For
-- At what context length does Mac accuracy start to drop vs DGX?
-- Is the drop gradual or a cliff?
-- Does it correlate with unified memory pressure (monitor with `sudo powermetrics` on Mac)?
+Available tasks: `ruler_niah_4k` (4096), `ruler_niah_8k` (8192), `ruler_niah_16k` (16384), `ruler_niah_32k` (32768), `ruler_niah_64k` (65536). Match `--gen-max-tokens` to the context length.
+
+### Results
+
+| Context | DGX Spark | Mac M4 | Notes |
+|---------|-----------|--------|-------|
+| 4K | pending | pending | |
+| 8K | pending | pending | |
+| 16K | pending | pending | |
+| 32K | pending | pending | |
+| 64K | pending | pending | |
 
 ---
 
@@ -224,7 +179,7 @@ Available task names: `ruler_niah` (=4k), `ruler_niah_4k`, `ruler_niah_8k`, `rul
 |------------|------|---------|--------|----------|
 | Baseline | GSM8K | ~500 tok | Qwen3-30B | device/framework |
 | Exp 1 | GSM8K | ~500 tok | 5 model pairs | model family + size |
-| Exp 2 | RULER NIAH | 4K–64K | Qwen3-30B | context length |
+| Exp 2 | RULER NIAH | 4K–64K | Qwen3-30B-A3B | context length |
 
 ---
 
@@ -232,6 +187,6 @@ Available task names: `ruler_niah` (=4k), `ruler_niah_4k`, `ruler_niah_8k`, `rul
 
 1. Finish baseline GSM8K run (in progress)
 2. Pull model pairs on both devices for Experiment 1
-3. ~~Write `evals/ruler_niah.yaml` for Experiment 2~~ ✓ Done — `gen_ruler_niah.py` + `evals/ruler_niah*.yaml` (4k/8k/16k/32k/64k)
-4. Run RULER NIAH sweeps on both Mac and DGX Spark
+3. ~~Write `evals/ruler_niah.yaml` for Experiment 2~~ ✓ Done
+4. Run RULER NIAH sweeps on both Mac and DGX Spark (in progress)
 5. Build results comparison table once all runs complete
