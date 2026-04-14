@@ -2,7 +2,6 @@
 # Generate data first:  python3 gen_ruler_niah.py
 # Run:  ./run.sh ... --task ruler_niah_16k --gen-max-tokens 16384 --eval-only --num-fewshot 0 --limit 100
 task: ruler_niah_16k
-alias: ruler_niah_16k
 dataset_path: json
 dataset_kwargs:
   data_files:

@@ -96,6 +96,13 @@ _bench_serving_patch_pretty_print() {
     sed -i.bak 's|task_manager\.task_index\[task_name\]\["yaml_path"\]|task_manager.task_index.get(task_name, {"yaml_path": "custom"})["yaml_path"]|' "$tasks_init"
     echo "Patched pretty_print_task in ${tasks_init}"
   fi
+
+  local eval_utils
+  eval_utils="$(python3 -c "import lm_eval.evaluator_utils; print(lm_eval.evaluator_utils.__file__)")"
+  if [[ -f "$eval_utils" ]] && grep -q 'tab_string + alias' "$eval_utils"; then
+    sed -i.bak 's|tab_string + alias|tab_string + (alias or name)|' "$eval_utils"
+    echo "Patched prepare_print_tasks in ${eval_utils}"
+  fi
 }
 
 # Run lm-eval against a local OpenAI chat endpoint.
