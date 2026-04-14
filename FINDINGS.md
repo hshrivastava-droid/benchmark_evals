@@ -44,4 +44,4 @@ Pending.
 
 1. **Quantization matters more than hardware at short context:** The ~4% GSM8K gap is driven primarily by Q4_K_M (mixed-precision K-quants) vs MLX uniform 4-bit, not hardware differences. Short context doesn't stress memory bandwidth or KV cache.
 2. **Runtime maturity gap:** Ollama correctly separates Qwen3 thinking (`reasoning`) and answer (`content`) fields; MLX server does not, requiring `/no_think` as a workaround.
-3. **DGX Spark throughput:** ~11s/request on NIAH 32K vs Mac's significantly longer per-request latency, reflecting dedicated VRAM bandwidth advantages.
+3. **DGX Spark throughput:** ~11s/request on NIAH 32K. Mac M4 (MLX) NIAH 32K run in progress.
