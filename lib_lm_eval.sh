@@ -179,7 +179,8 @@ bench_serving_run_lm_eval() {
 
   set -x
   python3 -m lm_eval --model local-chat-completions --apply_chat_template \
-    --tasks "${task_yaml}" \
+    --include_path "${SCRIPT_DIR}/evals" \
+    --tasks "${task}" \
     ${fewshot_args[@]+"${fewshot_args[@]}"} \
     ${limit_args[@]+"${limit_args[@]}"} \
     --output_path "${results_dir}" \
