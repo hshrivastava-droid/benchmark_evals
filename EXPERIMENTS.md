@@ -15,13 +15,15 @@ Same model family, same quantization level, same eval harness, same prompts — 
 
 Short-context math accuracy baseline (~500 tokens/question). KV cache not stressed, pure model quality signal.
 
-| Config | Mac (MLX) | DGX Spark (Ollama) |
-|--------|-----------|-------------------|
-| Model | `mlx-community/Qwen3-30B-A3B-4bit` | `qwen3:30b` |
-| Port | 8080 | 11434 |
-| Few-shot | 4 | 4 |
-| Max tokens | 8192 | 8192 |
-| Questions | 1319 (full set) | 1319 (full set) |
+| Config | Mac (MLX) | DGX Spark (Ollama) | DGX Spark (vLLM, NVFP4) |
+|--------|-----------|--------------------|--------------------------|
+| Model | `mlx-community/Qwen3-30B-A3B-4bit` | `qwen3:30b` | `nvidia/Qwen3-30B-A3B-NVFP4` |
+| Runtime | MLX 4-bit | Ollama (GGUF Q4_K_M) | vLLM v0.19+ (NVFP4 + FP8 KV) |
+| Container | — | — | `gitlab-master.nvidia.com:5005/dl/dgx/vllm:26.04-py3-devel` |
+| Port | 8080 | 11434 | 8888 |
+| Few-shot | 4 | 4 | 4 |
+| Max tokens | 8192 | 8192 | 8192 |
+| Questions | 1319 (full set) | 1319 (full set) | 1319 (full set) |
 
 ```bash
 # Mac (MLX)
@@ -35,7 +37,40 @@ Short-context math accuracy baseline (~500 tokens/question). KV cache not stress
   --eval-as qwen3:30b \
   --eval-only --gen-max-tokens 8192 \
   --eval-concurrent 1 --num-fewshot 4
+
+# DGX Spark (vLLM, NVFP4)
+# 1) Start the container (host shell):
+docker run -it --gpus all --ipc=host -p 8888:8888 \
+  -v $HOME/.cache/huggingface:/root/.cache/huggingface \
+  --name hs_vllm \
+  gitlab-master.nvidia.com:5005/dl/dgx/vllm:26.04-py3-devel
+
+# 2) Inside the container, launch vLLM in tmux:
+tmux new -s vllm
+vllm serve nvidia/Qwen3-30B-A3B-NVFP4 \
+  --quantization modelopt_fp4 \
+  --served-model-name qwen3-30b-a3b-nvfp4 \
+  --host 0.0.0.0 --port 8888 \
+  --max-model-len 8192 \
+  --gpu-memory-utilization 0.75 \
+  --trust-remote-code \
+  2>&1 | tee /workspace/vllm_server_$(date +%Y%m%d_%H%M%S).log
+# Detach: Ctrl+b d
+
+# 3) Run the eval (host or container):
+./run.sh --model nvidia/Qwen3-30B-A3B-NVFP4 --port 8888 \
+  --eval-as qwen3-30b-a3b-nvfp4 \
+  --eval-only --gen-max-tokens 8192 \
+  --eval-concurrent 1 --num-fewshot 4
 ```
+
+### DGX Spark vLLM gotchas
+
+- **Unified memory:** GPU and system RAM share the same ~119 GiB pool. vLLM's default `--gpu-memory-utilization 0.9` reserves ~107 GiB and starves the OS, causing swap and 2× pace degradation. **Always cap at `0.75`** on DGX Spark.
+- **Run vLLM inside `tmux`** — SSH drops/Ctrl+C from a bare shell can orphan `EngineCore` and pin GPU memory.
+- **Memory-bandwidth-bound, not compute-bound:** `nvidia-smi` reports ~96% GPU utilization at only ~9 W power draw — SMs stall on LPDDR5X memory loads (vs HBM3 on H100, ~12× faster). Steady decode rate is ~25 tok/s at concurrency=1.
+- **Bump concurrency for real throughput:** at `--eval-concurrent 1`, full 1319 takes ~12 h. KV cache stays at 0.1% used (186× headroom). At `--eval-concurrent 8`, expect ~3 h with same accuracy.
+- **vLLM build matters:** `v0.17.1+...nv26.03` crashed mid-eval with `cudaErrorIllegalInstruction` (NVFP4 + FP8-KV + cudagraph kernel bug). `v0.19.0+...nv26.04` runs the same workload to completion stably. Stick to `v0.19+`.
 
 ---
 
