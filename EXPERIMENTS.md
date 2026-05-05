@@ -19,7 +19,7 @@ Short-context math accuracy baseline (~500 tokens/question). KV cache not stress
 |--------|-----------|--------------------|--------------------------|
 | Model | `mlx-community/Qwen3-30B-A3B-4bit` | `qwen3:30b` | `nvidia/Qwen3-30B-A3B-NVFP4` |
 | Runtime | MLX 4-bit | Ollama (GGUF Q4_K_M) | vLLM v0.19+ (NVFP4 + FP8 KV) |
-| Container | — | — | `gitlab-master.nvidia.com:5005/dl/dgx/vllm:26.04-py3-devel` |
+| Container | — | — | `nvcr.io/nvidia/vllm:26.04-py3` |
 | Port | 8080 | 11434 | 8888 |
 | Few-shot | 4 | 4 | 4 |
 | Max tokens | 8192 | 8192 | 8192 |
@@ -43,7 +43,7 @@ Short-context math accuracy baseline (~500 tokens/question). KV cache not stress
 docker run -it --gpus all --ipc=host -p 8888:8888 \
   -v $HOME/.cache/huggingface:/root/.cache/huggingface \
   --name hs_vllm \
-  gitlab-master.nvidia.com:5005/dl/dgx/vllm:26.04-py3-devel
+  nvcr.io/nvidia/vllm:26.04-py3
 
 # 2) Inside the container, launch vLLM in tmux:
 tmux new -s vllm
