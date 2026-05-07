@@ -148,10 +148,21 @@ bench_serving_run_lm_eval() {
   fi
   mkdir -p "$results_dir"
 
+  # A local YAML in evals/ takes precedence (registered via --include_path
+  # below). When absent, fall through to lm-evaluation-harness's built-in
+  # task registry — covers names like mmlu_pro, ifeval, bfcl_v3.
   local task_yaml="${SCRIPT_DIR}/evals/${task}.yaml"
   if [[ ! -f "$task_yaml" ]]; then
-    echo "Error: task file not found: ${task_yaml}" >&2
-    return 1
+    echo "No local YAML at ${task_yaml}; expecting built-in lm-eval task '${task}'."
+  fi
+
+  # Sensible default num_fewshot per built-in task if caller didn't pass one.
+  if [[ -z "$num_fewshot" ]]; then
+    case "$task" in
+      mmlu_pro)     num_fewshot=5 ;;
+      ifeval)       num_fewshot=0 ;;
+      bfcl_v3|bfcl) num_fewshot=0 ;;
+    esac
   fi
 
   local max_output_tokens=$(( eval_context_len > 4096 ? eval_context_len - 4096 : eval_context_len / 2 ))

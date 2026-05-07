@@ -48,7 +48,10 @@ Options:
   --base-url URL          Full URL http://HOST:PORT (overrides --host/--port).
   --served-model-name S   Pass-through to throughput client if API name differs.
   --eval-as NAME          lm-eval "model" in API (default: same as --model).
-  --task TASK             evals/<TASK>.yaml (default: gsm8k).
+  --task TASK             Eval task (default: gsm8k). Local YAMLs in evals/
+                          (gsm8k, ruler_niah_*) take precedence; otherwise
+                          uses an lm-evaluation-harness built-in name —
+                          mmlu_pro, ifeval, bfcl_v3 (agentic / function-call).
   --num-fewshot N
   --eval-concurrent N
   --gen-max-tokens N      Eval context budget (default: 16384 in lib_lm_eval).
