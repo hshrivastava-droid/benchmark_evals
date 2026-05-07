@@ -18,6 +18,75 @@ _bench_serving_install_lm_eval() {
     python3 -m pip install -q --no-cache-dir --no-deps \
         "https://github.com/EleutherAI/lm-evaluation-harness/archive/${lm_eval_ref}.tar.gz" || true
   fi
+
+  # IFEval verifier needs these (not pulled in by lm-eval[api]).
+  python3 -m pip install -q --no-cache-dir nltk langdetect immutabledict || true
+  python3 - <<'PY' 2>/dev/null || true
+import nltk
+for pkg in ("punkt", "punkt_tab"):
+    try:
+        nltk.download(pkg, quiet=True)
+    except Exception:
+        pass
+PY
+}
+
+# BFCL-v3 is not a first-party lm-eval task; use gorilla's official runner
+# (bfcl-eval on PyPI). Installs the package and downloads test data on first use.
+_bench_serving_install_bfcl() {
+  python3 -m pip install -q --no-cache-dir bfcl-eval || \
+    python3 -m pip install -q --no-cache-dir --break-system-packages bfcl-eval || true
+}
+
+# Run BFCL-v3 against a local OpenAI-compatible chat endpoint.
+# Args: task host port model_api results_dir concurrent_requests limit
+_bench_serving_run_bfcl_task() {
+  local task="$1" host="$2" port="$3" model_api="$4"
+  local results_dir="$5" concurrent_requests="$6" limit="$7"
+
+  _bench_serving_install_bfcl
+
+  if ! command -v bfcl >/dev/null 2>&1; then
+    echo "Error: 'bfcl' CLI not found after install. Install manually: pip install bfcl-eval" >&2
+    return 1
+  fi
+
+  # gorilla's CLI reads the upstream URL from these env vars when --backend openai
+  # is used with a non-OpenAI model handle.
+  export OPENAI_BASE_URL="http://${host}:${port}/v1"
+  export OPENAI_API_BASE="$OPENAI_BASE_URL"
+  export OPENAI_API_KEY="${OPENAI_API_KEY:-EMPTY}"
+
+  # BFCL-v3 categories. "all" runs the full v3 suite (~4.4k entries across
+  # single/multi-turn/parallel/irrelevance). Override via BFCL_TEST_CATEGORY.
+  local test_category="${BFCL_TEST_CATEGORY:-all}"
+
+  local gen_args=(
+    generate
+    --model "$model_api"
+    --test-category "$test_category"
+    --num-threads "$concurrent_requests"
+    --result-dir "${results_dir}/bfcl_responses"
+  )
+  # --limit forwards as --num-tests (BFCL's per-category cap; ignored if
+  # the installed bfcl-eval version doesn't expose this flag).
+  [[ -z "$limit" ]] || gen_args+=(--num-tests "$limit")
+
+  local eval_args=(
+    evaluate
+    --model "$model_api"
+    --test-category "$test_category"
+    --result-dir "${results_dir}/bfcl_responses"
+    --score-dir "${results_dir}/bfcl_scores"
+  )
+
+  echo "=== BFCL ${task} | model=${model_api} | endpoint=${OPENAI_BASE_URL} | category=${test_category} ==="
+  set -x
+  bfcl "${gen_args[@]}"
+  bfcl "${eval_args[@]}"
+  local code=$?
+  set +x
+  return "$code"
 }
 
 _bench_serving_patch_lm_eval() {
@@ -147,6 +216,15 @@ bench_serving_run_lm_eval() {
     results_dir="$(mktemp -d /tmp/bench_serving_lm_eval-XXXXXX)"
   fi
   mkdir -p "$results_dir"
+
+  # BFCL-v3 isn't an lm-eval task — dispatch to gorilla's runner.
+  case "$task" in
+    bfcl|bfcl_v3)
+      _bench_serving_run_bfcl_task "$task" "$host" "$port" "$model_api" \
+        "$results_dir" "$concurrent_requests" "$limit"
+      return $?
+      ;;
+  esac
 
   # A local YAML in evals/ takes precedence (registered via --include_path
   # below). When absent, fall through to lm-evaluation-harness's built-in
