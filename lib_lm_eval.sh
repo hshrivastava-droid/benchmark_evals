@@ -38,6 +38,12 @@ _bench_serving_install_bfcl() {
     python3 -m pip install -q --no-cache-dir --break-system-packages bfcl-eval || true
 }
 
+# HF datasets + OpenAI client for SWE-bench Lite inference (no full ``swebench`` import; avoids Py version coupling).
+_bench_serving_install_swe_bench_lite_inference_deps() {
+  python3 -m pip install -q --no-cache-dir datasets openai tqdm numpy || \
+    python3 -m pip install -q --no-cache-dir --break-system-packages datasets openai tqdm numpy || true
+}
+
 # Run BFCL-v3 against a local OpenAI-compatible chat endpoint.
 # Args: task host port model_api results_dir concurrent_requests limit
 _bench_serving_run_bfcl_task() {
@@ -84,6 +90,46 @@ _bench_serving_run_bfcl_task() {
   set -x
   bfcl "${gen_args[@]}"
   bfcl "${eval_args[@]}"
+  local code=$?
+  set +x
+  return "$code"
+}
+
+# SWE-bench Lite: generate predictions JSONL via OpenAI-compatible Chat Completions.
+# Evaluation is separate (Docker): python -m swebench.harness.run_evaluation ...
+# Args match BFCL-style runner: task host port model_api results_dir concurrent_requests limit
+_bench_serving_run_swe_bench_lite_task() {
+  local task="$1" host="$2" port="$3" model_api="$4"
+  local results_dir="$5" concurrent_requests="$6" limit="$7"
+
+  _bench_serving_install_swe_bench_lite_inference_deps
+
+  if ! python3 -c "import datasets, openai" 2>/dev/null; then
+    echo "Error: install datasets and openai for SWE-bench Lite inference." >&2
+    return 1
+  fi
+
+  local dataset="${SWE_BENCH_LITE_DATASET:-princeton-nlp/SWE-bench_Lite_oracle}"
+  local out="${results_dir}/swe_bench_lite_predictions.jsonl"
+
+  local cmd=(
+    python3 "${SCRIPT_DIR}/run_swebench_lite_inference.py"
+    --host "$host"
+    --port "$port"
+    --model "$model_api"
+    --dataset-name "$dataset"
+    --output-jsonl "$out"
+    --max-workers "$concurrent_requests"
+  )
+  [[ -z "$limit" ]] || cmd+=(--limit "$limit")
+
+  echo "=== SWE-bench Lite inference | model=${model_api} | base_url=http://${host}:${port}/v1 | dataset=${dataset} ==="
+  echo "Writing: ${out}"
+  echo "Evaluate (install swebench + Docker; dataset must match predictions instance_ids):"
+  echo "  pip install 'swebench[datasets]>=3.0'"
+  echo "  python3 -m swebench.harness.run_evaluation --dataset_name princeton-nlp/SWE-bench_Lite --predictions_path ${out} --max_workers 4 --run_id local_run"
+  set -x
+  "${cmd[@]}"
   local code=$?
   set +x
   return "$code"
@@ -224,11 +270,17 @@ bench_serving_run_lm_eval() {
         "$results_dir" "$concurrent_requests" "$limit"
       return $?
       ;;
+    swe_bench_lite|swebench_lite|swe-bench-lite)
+      _bench_serving_run_swe_bench_lite_task "$task" "$host" "$port" "$model_api" \
+        "$results_dir" "$concurrent_requests" "$limit"
+      return $?
+      ;;
   esac
 
   # A local YAML in evals/ takes precedence (registered via --include_path
   # below). When absent, fall through to lm-evaluation-harness's built-in
-  # task registry — covers names like mmlu_pro, ifeval, bfcl_v3.
+  # task registry — covers names like mmlu_pro, ifeval, gpqa_diamond_*,
+  # aime24, aime25.
   local task_yaml="${SCRIPT_DIR}/evals/${task}.yaml"
   if [[ ! -f "$task_yaml" ]]; then
     echo "No local YAML at ${task_yaml}; expecting built-in lm-eval task '${task}'."
@@ -240,6 +292,8 @@ bench_serving_run_lm_eval() {
       mmlu_pro)     num_fewshot=5 ;;
       ifeval)       num_fewshot=0 ;;
       bfcl_v3|bfcl) num_fewshot=0 ;;
+      aime|aime24|aime25|aime26) num_fewshot=0 ;;
+      hle)          num_fewshot=0 ;;
     esac
   fi
 
